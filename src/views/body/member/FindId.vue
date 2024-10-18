@@ -135,7 +135,7 @@ async function findId() {
   cursor: pointer;
   transition: background-color 0.3s, color 0.3s;
   width: 35.6%;
-  width: 95%;
+  width: 98%;
   margin-left: 1rem;
 }
 .input-a{
