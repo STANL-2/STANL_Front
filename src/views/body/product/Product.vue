@@ -9,9 +9,9 @@
             </button>
 
             <div v-if="isAdmin && isProductDetailPage" class="update-wrapper">
-                <button class="btn-u" @click="goToProductModify">수정</button>
+                <!-- <button class="btn-u" @click="goToProductModify">수정</button> -->
                 <button class="btn-d" @click="showDeleteModal">삭제</button>
-                <button class="btn-u" @click="goToProductList">목록</button>
+                <!-- <button class="btn-u" @click="goToProductList">목록</button> -->
             </div>
         </div>
 
