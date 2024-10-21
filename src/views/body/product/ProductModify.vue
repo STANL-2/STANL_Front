@@ -4,10 +4,10 @@
             <select v-model="category1" class="category-select">
                 <option value="NECESSITIES">생활품</option>
                 <option value="KITCHENWARES">주방용품</option>
-                <option value="CLOTHES">의류</option>
+                <!-- <option value="CLOTHES">의류</option>
                 <option value="TOY">놀이</option>
                 <option value="DEVICE">전자기기</option>
-                <option value="ETC">기타</option>
+                <option value="ETC">기타</option> -->
             </select>
             <button @click="listPost" class="list-btn">취소</button>
             <button @click="submitPost" class="submit-btn">수정</button>
