@@ -80,7 +80,7 @@
           type="text"
           v-model="messageInput"
           placeholder="메시지 입력"
-          @keyup.enter="sendMessage"
+          @keydown.enter.prevent="sendMessage"
         />
         <button @click="sendMessage">전송</button>
       </div>
