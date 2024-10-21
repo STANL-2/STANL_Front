@@ -241,7 +241,7 @@
     /* 메시지 보내기 함수 */
     const sendMessage = async () => {
       if (!messageInput.value) {
-        alert('메시지를 입력해주세요.');
+        // alert('메시지를 입력해주세요.');
         return;
       }
 
