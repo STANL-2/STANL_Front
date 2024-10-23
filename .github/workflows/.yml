@@ -1,0 +1,24 @@
+name: DeepL Translation
+
+on: [push]
+
+jobs:
+  translate:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '16'
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Run translation script
+      env:
+        DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }} # 시크릿을 환경 변수로 설정
+      run: node your-script.js # 번역 스크립트를 실행
