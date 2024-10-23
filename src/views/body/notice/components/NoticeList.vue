@@ -19,7 +19,7 @@
 
 <script setup>
 import { useRouter, useRoute } from 'vue-router';
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import axios from 'axios';
 
 // 제품 목록과 상태 관리를 위한 ref
@@ -99,7 +99,8 @@ const fetchnoticeItems = async (reset = false) => {
 
       // 3. 기존 제품 목록에 새 데이터를 추가
       notices.value = [...notices.value, ...newContents];
-
+      
+      console.log("isAdmin" + isAdmin.value);
 
       if (notices.value.length === 0) {
           console.warn("No notices found.");
@@ -141,7 +142,6 @@ const goToCreateNotice = () => {
 // 컴포넌트가 마운트될 때 첫 페이지 데이터 가져오기
 onMounted(() => {  
   fetchnoticeItems();
-  checkRole();
   if (sentinel.value) {
         intersectionObserver.observe(sentinel.value);
     }
