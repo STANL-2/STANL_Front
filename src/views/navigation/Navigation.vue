@@ -159,6 +159,7 @@ const translatedMenu = ref({
   notice: '공지사항',
   faq: '자주 묻는 질문',
 });
+// direction: '오시는 길',
 
 const translatedCategories = ref({
     necessities: '생활품',
