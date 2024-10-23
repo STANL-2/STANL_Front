@@ -23,7 +23,7 @@
 </template>
 
 <script setup>
-    import { ref, onMounted} from 'vue'
+    import { ref, onMounted, computed} from 'vue'
     import { useRoute, useRouter } from 'vue-router'
     import axios from 'axios';
     import PostRemove from '@/components/cud/PostRemove.vue';
@@ -35,22 +35,15 @@
     const noticeId = ref('');
     const id = route.params.id;
     const noticeValues = ref({});
-    const isAdmin = ref(false);
 
     const loading = ref(true);
     const error = ref(null);
 
     const isDeleteModalVisible = ref(false);
 
-    const checkRole = () => {
-      const roleString = localStorage.getItem('Roles');   
-      if(roleString){
-        const roles = roleString.split(',');
-        isAdmin.value = roles.includes('ADMIN');
-      }else{
-        isAdmin.value = false;
-      }
-    }
+    const userInfo = JSON.parse(localStorage.getItem('userInfo')) || {};
+    const isAdmin = computed(() => userInfo.authorities === 'ROLE_ADMIN');// Vue Router 사용
+
 
     const token = localStorage.getItem("jwtToken");
 
@@ -155,7 +148,6 @@
     }
 
     onMounted(() => {
-      checkRole();
       fetchNoticeData();
       noticeId.value = route.params.noticeId;
     }) 
