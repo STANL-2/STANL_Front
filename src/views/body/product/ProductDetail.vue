@@ -252,6 +252,7 @@ label {
 }
 .submit-btn:disabled {
     background-color: #cccccc;
+    border: none !important;
     cursor: not-allowed;
 }
 

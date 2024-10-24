@@ -9,9 +9,9 @@
             </button>
 
             <div v-if="isAdmin && isProductDetailPage" class="update-wrapper">
-                <!-- <button class="btn-u" @click="goToProductModify">수정</button> -->
+                <button class="btn-u" @click="goToProductModify">수정</button>
                 <button class="btn-d" @click="showDeleteModal">삭제</button>
-                <!-- <button class="btn-u" @click="goToProductList">목록</button> -->
+                <button class="btn-u" @click="goToProductList">목록</button>
             </div>
         </div>
 
@@ -27,7 +27,6 @@ import { ref, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import ProductRemove from '../../../components/cud/PostRemove.vue';
 import axios from 'axios';
-import { translateText } from '@/assets/language/deepl.js'; // DeepL 번역 함수
 
 const route = useRoute();
 const router = useRouter();
@@ -42,6 +41,21 @@ const isDeleteModalVisible = ref(false);
 
 function goToProductRegist() {
     router.push({ path: '/product/regist', query: { category: category.value } });
+}
+
+function goToProductModify() {
+    const productId = route.params.id; // URL에서 ID 가져오기
+
+    // 수정 페이지로 이동
+    router.push({
+        path: `/product/${category.value}/${productId}/modify`, // 수정 페이지로 이동
+    });
+}
+
+function goToProductList() {
+    router.push({
+        path: `/product/${category.value}`,
+    });
 }
 
 function showDeleteModal() {
@@ -71,6 +85,7 @@ async function handleDelete() {
     }
 }
 
+// 카테고리 설정 및 번역 로직
 const category = ref(route.params.category || '공유 물품');
 const categoryTranslations = {
     NECESSITIES: '생활품',
@@ -80,21 +95,16 @@ const categoryTranslations = {
     DEVICE: '전자기기',
     ETC: '기타',
 };
-
 const translatedCategory = ref(categoryTranslations[category.value] || '공유 물품');
 
-// 언어 변경 시 카테고리 번역 업데이트
-// watch(
-//     () => route.params.category,
-//     async (newCategory) => {
-//         category.value = newCategory || '공유 물품';
-//         translatedCategory.value = await translateText(
-//             categoryTranslations[newCategory] || '공유 물품',
-//             currentLang.value
-//         );
-//     },
-//     { immediate: true }
-// );
+watch(
+    () => route.params.category,
+    (newCategory) => {
+        category.value = newCategory || '공유 물품';
+        translatedCategory.value = categoryTranslations[newCategory] || '공유 물품';
+    },
+    { immediate: true }
+);
 </script>
 
 <style scoped>
@@ -115,6 +125,7 @@ const translatedCategory = ref(categoryTranslations[category.value] || '공유 �
     color: white;
     border-radius: 1rem;
     cursor: pointer;
+    text-align: center;
     width: 7%;
     height: 4rem;
     font-size: 1.6rem;
@@ -125,7 +136,11 @@ const translatedCategory = ref(categoryTranslations[category.value] || '공유 �
     color: #FF414C;
     border-radius: 1rem;
     cursor: pointer;
+    text-align: center;
+    height: 3.5rem;
+    font-size: 1.3rem;
     border: 1px solid #FF414C;
+    padding: 0 2rem 0 2rem;
     margin-left: 1rem;
 }
 
@@ -134,7 +149,11 @@ const translatedCategory = ref(categoryTranslations[category.value] || '공유 �
     color: #439aff;
     border-radius: 1rem;
     cursor: pointer;
+    text-align: center;
+    height: 3.5rem;
+    font-size: 1.3rem;
     border: 1px solid #439aff;
+    padding: 0 2rem 0 2rem;
     margin-left: 1rem;
 }
 

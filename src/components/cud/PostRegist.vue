@@ -1,147 +1,242 @@
 <template>
   <div class="container">
-    <div class="title-container">
-      <input type="text" placeholder="제목을 작성해주세요." v-model="localTitle" class="title-input" @input="emitTitleUpdate"/>
-      <button class="image-upload-btn" @click="triggerFileInput">
-        <img src="@/assets/icon/Img_box_light.png" alt="이미지 업로드" />
-      </button>
-    </div>
+      <div class="product-grid" ref="gridElement">
+          <div v-for="item in products" :key="item.id" class="product-card"
+              @click="goToProductDetail(item.id, category)">
+              <img v-if="item.imageUrl" :src="item.imageUrl" :alt="item.title" class="product-image" />
+              <div class="product-info">
+                  <div style="margin-bottom: 1rem;">
+                      <span class="available">{{ getStatusText(item.status) }}</span>
+                      <span class="available1" style="margin-left: 0.5rem;">{{ getIsRentalText(item.rental) }}</span>
+                  </div>
+                  <h3>{{ item.title }}</h3>
+                  <p>{{ item.content }}</p>
+              </div>
+          </div>
 
-    <div class="content-area" contenteditable="true" ref="contentArea" @input="updateContent" placeholder="내용을 입력하세요.">
-    </div>
-
-    <input type="file" ref="fileInput" @change="handleImageUpload" accept="image/*" style="display: none;" />
+          <p v-if="products.length === 0" class="no-products">
+              No products available.
+          </p>
+          <p v-if="loading" class="loading">Loading more products...</p>
+      </div>
   </div>
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
+import { ref, onMounted, watch } from 'vue';
+import axios from 'axios';
 
-// 지역 상태 정의
-const localTitle = ref('');
-const content = ref('');
+// 제품 목록과 상태 관리를 위한 ref
+const products = ref([]);
+const cursorId = ref(''); // cursorId를 빈 문자열로 초기화
+const hasNext = ref(true); // 다음 페이지 여부를 서버 응답으로 관리
+const loading = ref(false); // 로딩 중인지 여부를 관리
 
+// Vue Router 사용
+const router = useRouter();
+const route = useRoute(); // 현재 경로 정보 가져오기
 
-const emit = defineEmits(['updateTitle', 'updateContent', 'imageUploaded']);
+// 카테고리 props로 전달 (URL 파라미터에서 가져옴)
+const category = ref(route.params.category || 'NECESSITIES');
 
-// 제목 변경 시 부모에게 알림
-const emitTitleUpdate = () => {
-  emit('updateTitle', localTitle.value);
-};
+// API에서 제품 아이템을 가져오는 함수
+const fetchProductItems = async (reset = false) => {
+  if (loading.value || (!reset && !hasNext.value)) return; // 중복 호출 방지
 
-// 내용 변경 시 부모에게 알림
-const updateContent = () => {
-  emit('updateContent', contentArea.value.innerText);
-};
+  loading.value = true; // 로딩 시작
 
-// 파일 선택창 열기
-const fileInput = ref(null);
-const triggerFileInput = () => {
-  fileInput.value.click();
-};
+  if (reset) {
+      // 초기화할 경우 기존 데이터 및 상태를 리셋
+      products.value = [];
+      cursorId.value = '';
+      hasNext.value = true;
+  }
 
-// 이미지 업로드 처리
-const handleImageUpload = (event) => {
-  const file = event.target.files[0];
-  if (file) {
-    emit('imageUploaded', file);
+  try {
+      const response = await axios.get(
+          `http://localhost:8080/api/v1/product/category/${category.value}`,
+          {
+              params: {
+                  cursor: cursorId.value || '', // cursorId가 없으면 빈 문자열로 전송
+                  size: 8 // 페이지 당 가져올 아이템 수
+              }
+          }
+      );
+
+      console.log("API Response:", response.data);
+
+      let data = response.data;
+      let newContents = []; // 새로 추가할 데이터
+
+      // 1. 응답이 문자열인 경우 처리
+      if (typeof data === 'string') {
+          console.log("Received JSON as String. Attempting to parse...");
+          const jsonParts = data.match(/\{.*?\}(?=\{|\s*$)/g) || [];
+
+          if (jsonParts.length > 0) {
+              try {
+                  const parsed = JSON.parse(jsonParts[0]);
+                  console.log("Parsed JSON:", parsed.result.contents);
+
+                  newContents = parsed.result?.contents || [];
+                  cursorId.value = parsed.result?.cursorId || ''; // cursorId 업데이트
+                  hasNext.value = parsed.result?.hasNext; // hasNext 상태 업데이트
+              } catch (error) {
+                  console.error("JSON 파싱 실패:", error);
+              }
+          }
+      } else {
+          console.log("Parsed Data:", data);
+
+          // 2. 데이터가 이미 객체일 경우 바로 처리
+          newContents = data.result?.contents || [];
+          cursorId.value = data.result?.cursorId || ''; // cursorId 업데이트
+          hasNext.value = data.result?.hasNext; // hasNext 상태 업데이트
+      }
+
+      // 3. 기존 제품 목록에 새 데이터를 추가
+      products.value = [...products.value, ...newContents];
+      console.log("Products after assignment:", products.value);
+
+      if (products.value.length === 0) {
+          console.warn("No products found.");
+      }
+  } catch (error) {
+      console.error("API 호출 에러:", error.response?.data || error.message);
+  } finally {
+      loading.value = false; // 로딩 종료
   }
 };
 
-// 내용 입력 참조
-const contentArea = ref(null);
+// 스크롤이 페이지 끝에 도달했는지 확인하는 함수
+const handleScroll = () => {
+  const gridElement = document.querySelector('.product-grid');
+  if (gridElement.scrollTop + gridElement.clientHeight >= gridElement.scrollHeight) {
+      fetchProductItems(); // 페이지 끝에 도달하면 데이터 요청
+  }
+};
+
+// 제품 상세 페이지로 이동하는 함수
+const goToProductDetail = (id, category) => {
+  router.push(`/product/${category}/${id}`);
+};
+
+// 상태 텍스트 변환 함수
+const getStatusText = (status) => {
+  return status === 'RENTAL' ? '대여' : '공유';
+};
+
+const getIsRentalText = (rental) => {
+  return status === 'false' ? '대여 가능' : '대여 중';
+};
+
+// 카테고리가 변경될 때마다 데이터를 새로 불러옴
+watch(
+  () => route.params.category,
+  (newCategory) => {
+      category.value = newCategory || 'NECESSITIES';
+      fetchProductItems(true); // 데이터 리셋 후 새로 불러오기
+  }
+);
+
+// 컴포넌트가 마운트될 때 첫 페이지 데이터 가져오기
+onMounted(() => {
+  fetchProductItems();
+  const gridElement = document.querySelector('.product-grid');
+  gridElement.addEventListener('scroll', handleScroll); // 스크롤 이벤트 등록
+});
 </script>
 
 <style scoped>
-.container {
+/* .container {
+  padding: 2rem;
+} */
+
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 2rem;
+  height: 80vh;
+  overflow-y: auto;
+}
+
+@media (min-width: 1200px) {
+  .product-grid {
+      grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.product-card {
+  background-color: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 15px;
+  text-align: left;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  height: 33.2rem;
+  transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+}
+
+.product-card:hover {
+  transform: scale(1.01); /* 호버 시 이미지 확대 */
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15); /* 호버 시 그림자 진하게 */
+}
+
+.product-image {
+  max-width: 100%;
+  height: 70%;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.product-info {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  border: 1px solid #e0e0e0;
-  border-radius: 1rem;
-  padding: 5rem;
-  background-color: #fff;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
-  width: 100%;
-  height: 66vh;
-  margin: 2rem auto;
-  overflow-y: auto;
 }
 
-/* 제목과 이미지 업로드 버튼을 가로로 배치 */
-.title-container {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  margin-bottom: 2rem;
+.available {
+  background-color: #d9eaff;
+  color: #1a73e8;
+  border-radius: 12px;
+  padding: 5px 10px;
+  font-size: 1.2rem;
+  margin-bottom: 1rem;
 }
 
-.title-input {
-  flex: 1;
-  /* 입력 필드가 가능한 공간을 차지하도록 */
-  border: none;
-  border-bottom: 1px solid #ddd;
-  font-size: 2.8rem;
-  padding: 0.5rem 0;
-  outline: none;
-  margin-right: 1rem;
-  /* 이미지 버튼과의 간격 */
+.available1 {
+  color: #1a73e8;
+  border: 1.3px solid #d9eaff;
+  border-radius: 12px;
+  padding: 5px 10px;
+  font-size: 1.2rem;
+  margin-bottom: 1rem;
 }
 
-.image-upload-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
+h3 {
+  font-size: 1.8rem;
+  margin: 0 0 5px 0;
 }
 
-.image-upload-btn img {
-  width: 32px;
-  height: 32px;
+p {
+  color: #666;
+  font-size: 1.4rem;
+  margin: 0;
 }
 
-.content-area {
-  width: 100%;
-  min-height: 300px;
-  font-size: 1.6rem;
-  padding: 1rem;
-  overflow-y: auto;
-  margin: 3rem 0 2rem 0;
-  white-space: pre-wrap;
-  outline: none;
-  /* 포커스 시 기본 outline 제거 */
+.loading {
+  text-align: center;
+  margin-top: 1rem;
+  color: #666;
 }
 
-@media (max-width: 768px) {
-  .container {
-    padding: 3rem;
-  }
-
-  .title-input {
-    font-size: 2.4rem;
-  }
-
-  .content-area {
-    font-size: 1.8rem;
-  }
+.no-products {
+  text-align: center;
+  margin-top: 2rem;
+  font-size: 1.8rem;
+  color: #888;
 }
 
-@media (max-width: 480px) {
-  .container {
-    padding: 2rem;
-  }
-
-  .title-input {
-    font-size: 2rem;
-  }
-
-  .content-area {
-    font-size: 1.6rem;
-    height: 200px;
-  }
-
-  .image-upload-btn img {
-    width: 24px;
-    height: 24px;
-  }
-}
 </style>
