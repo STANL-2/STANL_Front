@@ -166,8 +166,8 @@ const translatedMenu = ref({
   tip: 'TIP',
   notice: '공지사항',
   faq: '자주 묻는 질문',
-  direction: '오시는 길',
 });
+// direction: '오시는 길',
 
 const translatedCategories = ref({
     necessities: '생활품',
@@ -187,7 +187,7 @@ const translateMenu = async (lang) => {
     translatedMenu.value.tip = await translateText('TIP', lang);
     translatedMenu.value.notice = await translateText('공지사항', lang);
     translatedMenu.value.faq = await translateText('자주 묻는 질문', lang);
-    translatedMenu.value.direction = await translateText('오시는 길', lang);
+    // translatedMenu.value.direction = await translateText('오시는 길', lang);
 
     translatedCategories.value.necessities = await translateText('생활품', lang);
     translatedCategories.value.kitchenwares = await translateText('주방용품', lang);

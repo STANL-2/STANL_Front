@@ -189,7 +189,7 @@ const fetchBoardItems = async (reset = false) => {
         console.log("New contents after filtering:", newContents);
 
         if (newContents.length < targetSize && hasNext.value) {
-          currentSize *= 2;  // 다음 요청 시 더 많은 데이터를 가져오기
+          // currentSize *= 2;  // 다음 요청 시 더 많은 데이터를 가져오기
           console.log("Increasing request size to:", currentSize);
         } else {
           break;  // 목표 크기에 도달하거나 더 이상 가져올 데이터가 없으면 루프 종료

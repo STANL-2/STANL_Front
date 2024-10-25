@@ -20,8 +20,8 @@
       <div class="login-options">
         <router-link to="/signup">회원가입</router-link>
         <span>|</span>
-        <router-link to="/findId">아이디 찾기</router-link>
-        <span>|</span>
+        <!-- <router-link to="/findId">아이디 찾기</router-link> -->
+        <!-- <span>|</span> -->
         <router-link to="/findPwd">비밀번호 찾기</router-link>
 
       </div>

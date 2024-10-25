@@ -80,7 +80,7 @@
           type="text"
           v-model="messageInput"
           placeholder="메시지 입력"
-          @keyup.enter="sendMessage"
+          @keydown.enter.prevent="sendMessage"
         />
         <button @click="sendMessage">전송</button>
       </div>
@@ -138,6 +138,7 @@
             alert("상대방 이름을 입력해주세요.");
             return;
         }
+
         try {
             const response = await axios.post('http://localhost:8080/api/v1/chat', {
             sender: user.name,   // 로그인한 사용자 (채팅방 생성자)
@@ -250,7 +251,7 @@
     /* 메시지 보내기 함수 */
     const sendMessage = async () => {
       if (!messageInput.value) {
-        alert('메시지를 입력해주세요.');
+        // alert('메시지를 입력해주세요.');
         return;
       }
 
