@@ -14,6 +14,8 @@
       <input type="file" ref="fileInput" @change="handleImageUpload" style="display: none" accept="image/*" />
     </div>
 
+    <p v-if="hasImageError" class="error-message">이미지를 최소 한 개 이상 업로드하세요.</p>
+
     <div class="form-group tag-group">
       <label for="tag">태그</label>
       <select id="tag" v-model="selectedTag">
@@ -57,6 +59,7 @@ const tags = ref(['GUIDE', 'FREEMARKET', 'ACCOMPANY', 'TIP']);
 
 const fileInput = ref(null);
 const currentImageIndex = ref(null);
+const hasImageError = ref(false);
 
 const triggerFileInput = (index) => {
   currentImageIndex.value = index;
@@ -88,6 +91,14 @@ const deleteImage = (index) => {
 };
 
 const submitForm = async () => {
+
+  hasImageError.value = false;
+
+  if (images.value.length === 0) {
+    hasImageError.value = true; 
+    scrollToImageSection();
+    return;
+  }
   try {
     const formData = new FormData();
     const payload = JSON.parse(userInfo);
@@ -126,6 +137,14 @@ const submitForm = async () => {
 const goToMain = () => {
   router.push('/board/GUIDE');
 }
+
+const scrollToImageSection = () => {
+  const imageContainer = document.querySelector('.image-container');
+  if (imageContainer) {
+    imageContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+};
+
 
 </script>
 
@@ -285,5 +304,17 @@ textarea {
 
 .btn-secondary {
   color: #999;
+}
+
+.image-container.error-border {
+  border: 2px solid red;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.error-message {
+  color: red;
+  font-size: 1.5rem;
+  margin-top: 0.5rem;
 }
 </style>
