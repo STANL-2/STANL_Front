@@ -61,10 +61,10 @@
         </div>
 
         <!-- 좋아요와 댓글 수 -->
-        <!-- <div class="interaction-info">
+        <div class="interaction-info">
           <span>좋아요 {{ item.likesCount }}개</span>
           <span>댓글 {{ item.commentCount }}개</span>
-        </div> -->
+        </div>
 
       </div>
       <!-- 무한 스크롤을 위한 sentinel -->
@@ -112,101 +112,130 @@ const emptyHeartIcon = new URL('@/assets/icon/boardIcons/heart.svg', import.meta
 const filledHeartIcon = new URL('@/assets/icon/boardIcons/filledheart.svg', import.meta.url).href;
 
 const fetchLikedBoards = async () => {
-    try {
-        const token = localStorage.getItem('jwtToken');
-        const response = await axios.get('http://localhost:8080/api/v1/board_likes', {
-            headers: { Authorization: `Bearer ${token}` },
-        });
+  try {
+    const token = localStorage.getItem('jwtToken');
+    if (!token) return;
 
-        likedBoardIds.value = new Set(response.data); // 좋아요한 게시글 ID 저장
-    } catch (error) {
-        console.error('Error fetching liked boards:', error.response?.data || error.message);
-    }
+    const response = await axios.get('http://localhost:8080/api/v1/board_like/mylist', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const likedBoards = response.data.result || [];
+    likedBoardIds.value = new Set(likedBoards.map(board => board.boardId));
+    
+    // 현재 표시된 게시글들의 좋아요 상태 업데이트
+    boards.value = boards.value.map(board => ({
+      ...board,
+      liked: likedBoardIds.value.has(board.id)
+    }));
+  } catch (error) {
+    console.error('Error fetching liked boards:', error.response?.data || error.message);
+  }
 };
 
 const fetchBoardItems = async (reset = false) => {
-    if (loading.value || (!reset && !hasNext.value)) return;
+  if (loading.value || (!reset && !hasNext.value)) return;
 
-    loading.value = true;
+  loading.value = true;
 
-    if (reset) {
-        boards.value = [];
-        cursorId.value = '';
-        hasNext.value = true;
-    }
+  if (reset) {
+    boards.value = [];
+    cursorId.value = '';
+    hasNext.value = true;
+  }
 
-    const initialSize = 3;
-    let currentSize = initialSize;
-    let newContents = [];
-    let currentTag = '';
-    const targetSize = 3;  // 목표로 하는 게시물 수
+  let newContents = [];
+  let currentTag = '';
+  const targetSize = 3;
 
-    try {
-      while (newContents.length < targetSize && hasNext.value) {
-        const response = await axios.get(`http://localhost:8080/api/v1/board/${tag.value}`, {
-          params: { cursor: cursorId.value || '', size: currentSize }
-        });
-        let data = response.data;
-        let parsedData = [];
-            
-        console.log("Parsed Data:", data);
-        if (typeof data === 'string') {
-          const jsonParts = data.match(/\{.*?\}(?=\{|\s*$)/g) || [];
-          if (jsonParts.length > 0) {
-            try {
-              const parsed = JSON.parse(jsonParts[0]);
-              parsedData = parsed.result?.comment || [];
-              currentTag = data.result?.tag || tag.value;
-              cursorId.value = parsed.result?.cursorId || '';
-              hasNext.value = parsed.result?.hasNext;
-              } catch (error) {
-                console.error("JSON 파싱 실패:", error);
-              }
+  try {
+    while (newContents.length < targetSize && hasNext.value) {
+      const response = await axios.get(`http://localhost:8080/api/v1/board/${tag.value}`, {
+        params: { cursor: cursorId.value || '', size: targetSize }
+      });
+
+      let data = response.data;
+      let parsedData = [];
+
+      if (typeof data === 'string') {
+        const jsonParts = data.match(/\{.*?\}(?=\{|\s*$)/g) || [];
+
+        if (jsonParts.length > 0) {
+          try {
+            const parsed = JSON.parse(jsonParts[0]);
+            parsedData = parsed.result?.comment || [];
+            currentTag = data.result?.tag || tag.value;
+            cursorId.value = parsed.result?.cursorId || '';
+            hasNext.value = parsed.result?.hasNext;
+          } catch (error) {
+            console.error("JSON 파싱 실패:", error);
           }
-        } else {
-          parsedData = data.result?.comment || [];
-          currentTag = data.result?.tag || tag.value;
-          cursorId.value = data.result?.cursorId || '';
-          hasNext.value = data.result?.hasNext;
         }
-            
-        console.log("Parsed data:", parsedData);
-
-        // 활성 게시물만 필터링
-        const filteredContents = parsedData.filter(board => board.active === true)
-          .map(board => ({
-            ...board,
-            tag: currentTag  // 각 게시글에 태그 정보 추가
-          }));
-            
-            // 좋아요 상태 반영
-        filteredContents.forEach(board => {
-          board.liked = likedBoardIds.value.has(board.id);
-        });
-            
-        newContents = [...newContents, ...filteredContents];
-            
-        console.log("New contents after filtering:", newContents);
-
-        if (newContents.length < targetSize && hasNext.value) {
-          // currentSize *= 2;  // 다음 요청 시 더 많은 데이터를 가져오기
-          console.log("Increasing request size to:", currentSize);
-        } else {
-          break;  // 목표 크기에 도달하거나 더 이상 가져올 데이터가 없으면 루프 종료
-        }
+      } else {
+        parsedData = data.result?.comment || [];
+        currentTag = data.result?.tag || tag.value;
+        cursorId.value = data.result?.cursorId || '';
+        hasNext.value = data.result?.hasNext;
       }
-      boards.value = [...boards.value, ...newContents];
 
-        if (boards.value.length === 0) {
-            console.warn("No boards found.");
-          } else {
-            console.log("Total boards after update:", boards.value.length);
-          }
-    } catch (error) {
-        console.error("API 호출 에러:", error.response?.data || error.message);
-    } finally {
-        loading.value = false;
+      const filteredContents = parsedData.filter(board => board.active === true)
+        .map(board => ({
+          ...board,
+          tag: currentTag,
+          liked: likedBoardIds.value.has(board.id)
+        }));
+
+      newContents = [...newContents, ...filteredContents];
+
+      if (newContents.length >= targetSize || !hasNext.value) {
+        break;
+      }
     }
+    
+    boards.value = [...boards.value, ...newContents];
+
+  } catch (error) {
+    console.error("API 호출 에러:", error.response?.data || error.message);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const upLike = async (boardId) => {
+
+  try {
+    const token = localStorage.getItem('jwtToken');
+    const boardIndex = boards.value.findIndex((board) => board.id === boardId);
+    if (boardIndex === -1) return;
+
+    const board = boards.value[boardIndex];
+    const url = 'http://localhost:8080/api/v1/board_like';
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    };
+
+    if (board.liked) {
+      const response = await axios.delete(url, {
+        headers,
+        data: { boardId }
+      });
+
+      board.likesCount -= 1;
+      board.liked = false;
+      likedBoardIds.value.delete(boardId); // Set에서 삭제
+      console.log('좋아요 취소 완료');
+    } else {
+      const response = await axios.post(url, { boardId }, { headers });
+
+      board.likesCount += 1;
+      board.liked = true;
+      likedBoardIds.value.add(boardId); // Set에 추가
+      console.log('좋아요 추가 완료');
+    }
+  } catch (error) {
+    console.error('좋아요 처리 에러:', error.response?.data || error.message);
+  }
 };
 
 const openModal = (board, imageIndex) => {
@@ -284,42 +313,6 @@ const goToChat = async (item) => {
   router.push('/chat');
 };
 
-const upLike = async (boardId) => {
-    try {
-        const token = localStorage.getItem('jwtToken');
-        const boardIndex = boards.value.findIndex((board) => board.id === boardId);
-        if (boardIndex === -1) return;
-
-        const board = boards.value[boardIndex];
-        const url = 'http://localhost:8080/api/v1/board_like';
-        const headers = {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        };
-
-        if (board.liked) {
-            await axios.delete(url, {
-                headers,
-                data: { boardId }
-            });
-
-            board.likesCount -= 1;
-            board.liked = false;
-            likedBoardIds.value.delete(boardId); // Set에서 삭제
-            console.log('좋아요 취소 완료');
-        } else {
-            await axios.post(url, { boardId }, { headers });
-
-            board.likesCount += 1;
-            board.liked = true;
-            likedBoardIds.value.add(boardId); // Set에 추가
-            console.log('좋아요 추가 완료');
-        }
-    } catch (error) {
-        console.error('좋아요 처리 에러:', error.response?.data || error.message);
-    }
-};
-
 watch(
     () => route.params.tag,
     (newTag) => {
@@ -329,7 +322,6 @@ watch(
 );
 
 onMounted(async () => {
-    await fetchLikedBoards(); // 좋아요한 게시글 정보 먼저 로드
     await fetchBoardItems(); // 게시글 로드 후 좋아요 상태 반영
     if (sentinel.value) {
         intersectionObserver.observe(sentinel.value);
