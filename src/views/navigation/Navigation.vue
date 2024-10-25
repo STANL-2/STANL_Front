@@ -105,10 +105,14 @@
                     </div>
                 </div>
             </div>
-            
-            <RouterLink to="/chat">
-                <img src="../../assets/icon/navigation/message.png" class="icon-img" alt="message" />
-            </RouterLink>
+
+            <!-- 채팅 아이콘 및 숫자 표시 -->
+            <div class="chat-notification-wrapper" @click ="resetChatCount">
+                <RouterLink to="/chat">
+                    <img src="../../assets/icon/navigation/message.png" class="icon-img" alt="message" />
+                </RouterLink>
+                <span v-if="chatCount > 0" class="chat-count">{{ chatCount }}</span>
+            </div>
 
             <!-- 프로필 이미지 -->
             <div class="profile-container" @click="toggleDropdown('profile')" @click.stop>
@@ -134,11 +138,15 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, inject, watch } from 'vue';
+import { ref, onMounted, onBeforeUnmount, inject, watch, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { translateText } from '@/assets/language/deepl';
 import defaultProfileImage from '../../assets/icon/navigation/profile.png';
 import axios from 'axios';
+import SockJS from 'sockjs-client';
+import Stomp from 'stompjs';
+import { useToast } from "vue-toastification";
+import "vue-toastification/dist/index.css";
 
 // inject로 전역 언어 상태와 변경 함수 받아오기
 const currentLang = inject('currentLang');
@@ -190,11 +198,8 @@ const translateMenu = async (lang) => {
 };
 // 전역 언어 상태를 감시하고 언어에 따라 메뉴를 DeepL로 번역
 
-
-
 const activeDropdown = ref(null);
 const activeMenu = ref(null);
-// 
 const isHidden = ref(false);
 const router = useRouter();
 const isLoggedIn = ref(false);
@@ -321,7 +326,71 @@ const handleClickOutside = (event) => {
     }
 };
 
-// 
+// 채팅 서버 구독
+const chatCount = ref(0);
+const stompClient = ref(null);
+const rooms = reactive([]);
+const toast = useToast();
+
+const userInfo = JSON.parse(localStorage.getItem('userInfo')) || {};
+const userName = userInfo?.nickname;
+
+const fetchChatRooms = async () => {
+ 
+    const token = localStorage.getItem('jwtToken');
+        try {
+            console.log("Fetching chat rooms...");
+            const response = await axios.get('http://localhost:8080/api/v1/chat', {
+            headers: {
+                Authorization: `Bearer ${token}`,}
+        });
+        rooms.splice(0, rooms.length, ...response.data.rooms);
+ 
+        connect(rooms);
+
+        console.log("연결 확인~");
+    } catch (error) {
+        console.error("Error fetching chat rooms:", error);
+        }
+    };
+
+
+/* WebSocket을 통해 서버에 연결 */
+const connect = (rooms) => {
+    const socket = new SockJS('http://localhost:8080/ws-stomp');
+    stompClient.value = Stomp.over(socket);
+
+    stompClient.value.connect({ 'heart-beat': '10000,10000' },
+        (frame) => {
+        console.log('Connected: ' + frame);
+
+        // send to chatting room
+        rooms.forEach((room) => {
+                stompClient.value.subscribe(`/sub/notification/${room.roomId}`, (message) => {
+                console.log("received: " + JSON.parse(message.body));
+                showMessage(JSON.parse(message.body), room);  // 각 방의 메시지 처리
+            });        
+        });
+        }, (error) => {
+        console.log('Connection error: ', error);
+        });
+    }
+
+
+const showMessage = (message, room) => {
+    if(userName != message.sender){   
+        
+        chatCount.value++;
+
+        toast(message.sender + "\n "+message.message, {timeout:2000});
+    }
+}
+
+const resetChatCount = () => {
+    chatCount.value = 0;
+}
+
+
 const handleScroll = () => {
     if (window.scrollY < lastScrollY) {
         isHidden.value = false; // 스크롤 위로 시 헤더 표시
@@ -344,9 +413,18 @@ onMounted(() => {
     fetchAlarmItems();
     const gridElement = document.querySelector('.alarm-modal');
     gridElement.addEventListener('scroll', handleScroll);
+
+    if(isLoggedIn)
+        fetchChatRooms();
 });
 
 onBeforeUnmount(() => {
+    //채팅 소켓 폐쇄
+    if(stompClient.value){
+        stompClient.value.disconnect();
+        console.log('Disconnected');
+    }
+
     window.removeEventListener('scroll', handleScroll);
     window.removeEventListener('click', handleClickOutside);
 });
@@ -563,4 +641,21 @@ onBeforeUnmount(() => {
 .new-message {
     background-color: #e8f4ff;
 }
+
+.chat-notification-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.chat-count {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background-color: red;
+    color: white;
+    border-radius: 50%;
+    padding: 5px;
+    font-size: 12px;
+}
+
 </style>

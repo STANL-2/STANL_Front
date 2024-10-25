@@ -181,12 +181,22 @@
     const socket = new SockJS('http://localhost:8080/ws-stomp');
     stompClient.value = Stomp.over(socket);
 
+    const token = localStorage.getItem('jwtToken'); // 예시로 로컬 스토리지에서 가져옴
+
+    // 헤더에 Authorization 추가
+    const headers = {};
+    if (token) {
+        headers['Authorization'] = 'Bearer ' + token;
+    }
 
     console.log("connect에서의 roomId: " + room.roomId);
 
-      stompClient.value.connect({}, (frame) => {
+      // stompClient.value.connect({}, (frame) => {
+      stompClient.value.connect(headers, (frame) => {
         console.log('Connected: ' + frame);
         console.log('roomid value: ' + room.roomId);
+        
+        // send to chatting room
         stompClient.value.subscribe(`/sub/${room.roomId}`, (message) => {
           showMessage(JSON.parse(message.body));
         });
@@ -205,7 +215,6 @@
         try {
           
             console.log("Fetching message rooms...");
-            console.log("Fetching에서의 roomId: " + room.roomId);
             const response = await axios.get(`http://localhost:8080/api/v1/chat/${room.roomId}`
             , {
                 headers: {
@@ -253,9 +262,6 @@
         type: 'TALK'
       };
 
-      console.log("stompClient is alive?" + stompClient);
-      console.log('Sending message:', JSON.stringify(sendMessage));
-
       try {
         await stompClient.value.send(`/pub/message/${roomId.value}`, {}, JSON.stringify(sendMessage));
         messageInput.value = '';
@@ -296,8 +302,6 @@
         }
       });
     };
-
-    
 
     // 컴포넌트가 마운트될 때 데이터 가져오기
     onMounted(async () => {
