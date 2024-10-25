@@ -19,7 +19,7 @@
 
 <script setup>
 import { useRouter, useRoute } from 'vue-router';
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import axios from 'axios';
 
 // 제품 목록과 상태 관리를 위한 ref
@@ -28,22 +28,14 @@ const cursorId = ref(''); // cursorId를 빈 문자열로 초기화
 const hasNext = ref(true); // 다음 페이지 여부를 서버 응답으로 관리
 const loading = ref(false); // 로딩 중인지 여부를 관리
 const sentinel = ref(null);
-const isAdmin = ref(false);
-// Vue Router 사용
 const router = useRouter();
 const route = useRoute(); // 현재 경로 정보 가져오기
 
-const token = localStorage.getItem("jwtToken");
 
-const checkRole = () => {
-    const roleString = localStorage.getItem('Roles');   
-    if(roleString){
-      const roles = roleString.split(',');
-      isAdmin.value = roles.includes('ADMIN');
-    }else{
-      isAdmin.value = false;
-    }
-  }
+const userInfo = JSON.parse(localStorage.getItem('userInfo')) || {};
+const isAdmin = computed(() => userInfo.authorities === 'ROLE_ADMIN');// Vue Router 사용
+
+const token = localStorage.getItem("jwtToken");
 
 // API에서 제품 아이템을 가져오는 함수
 const fetchnoticeItems = async (reset = false) => {
@@ -107,7 +99,8 @@ const fetchnoticeItems = async (reset = false) => {
 
       // 3. 기존 제품 목록에 새 데이터를 추가
       notices.value = [...notices.value, ...newContents];
-
+      
+      console.log("isAdmin" + isAdmin.value);
 
       if (notices.value.length === 0) {
           console.warn("No notices found.");
@@ -149,7 +142,6 @@ const goToCreateNotice = () => {
 // 컴포넌트가 마운트될 때 첫 페이지 데이터 가져오기
 onMounted(() => {  
   fetchnoticeItems();
-  checkRole();
   if (sentinel.value) {
         intersectionObserver.observe(sentinel.value);
     }
